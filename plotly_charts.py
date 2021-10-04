@@ -1,13 +1,10 @@
 import dash
 import dash.html as html
 import plotly.graph_objs as go
-import pandas as pd
+
 from dash import dcc
-import warnings
-warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 bgcolor = 'floralwhite'
-
 actual_style = dict([('color', '#ff0000'), ('dash', 'solid')])
 forecast_style = dict([('color', '#d63eb5'), ('dash', 'dot')])
 conf_style = dict([('color', '#0b8c16'), ('dash', 'solid')])
@@ -21,7 +18,8 @@ page_style =\
                 'background-color': bgcolor
     }
 
-def plot_data(df, anomaly_df, quantile):
+
+def plot_data(df, anomaly_df, quantile, address, port):
 
     fig0 = go.Figure(data=[go.Candlestick(
         x=df['date'],
@@ -71,7 +69,7 @@ def plot_data(df, anomaly_df, quantile):
                    name='{}th percentile'.format(quantile * 100))
     fig2.update_layout(paper_bgcolor=bgcolor)
 
-    # Close chart
+    # Open chart
     fig3.add_trace(go.Scatter(x=df['date'], y=df['open'], line=actual_style, name='actual open'))
     fig3.add_trace(go.Scatter(x=df['date'], y=df['open_forecast'], line=forecast_style, name='forecast open'))
     fig3.add_trace(
@@ -82,6 +80,7 @@ def plot_data(df, anomaly_df, quantile):
                    name='{}th percentile'.format(quantile * 100))
     fig3.update_layout(paper_bgcolor=bgcolor)
 
+    # some styling stuff
     app = dash.Dash()
     layout = html.Div(children=[
         html.Div([
@@ -107,7 +106,7 @@ def plot_data(df, anomaly_df, quantile):
     ],
         style=page_style)
 
-
+    # run dash app to show charts
     app.layout = layout
-    app.run_server('127.0.0.1', 5678)
+    app.run_server(address, port)
 

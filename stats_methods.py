@@ -1,8 +1,5 @@
 # file containing simple and double exponential smoothing implementation
 # in order to forecast on actual data.
-from pandas import DataFrame
-import warnings
-warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 def simple_exponential_smoothing(dataset, alpha) -> []:
     res = [dataset[0]]

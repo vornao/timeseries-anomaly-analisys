@@ -1,6 +1,4 @@
 /venv/
-/rrd/
-/config/
 *.xml
 *.iml
 .gitignore

@@ -1,4 +1,6 @@
 import datetime as dt
+
+
 class Candle:
     def __init__(self, time, open: float, close: float, high: float, low: float):
         self.time = time

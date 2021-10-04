@@ -26,3 +26,22 @@ Candlestick chart with anomalies markers:
 Data forecasting example chart:
 
 ![Data forecasting example chart](assets/chart_example.png)
+
+### Installation instructions
+
+This project requires python 3.9 installed on your local machine and the package virtualenv.
+Once you have installed python open a terminal (on linux/MacOS) window and type the following commands
+in order to install dependencies.
+
+```bash
+    $ virtualenv timeseries-anomaly-venv
+    $ source timeseries-anomaly-venv/bin/activate
+    $ pip3 install -r requirements.txt  
+```
+
+Now, you can edit the ```config.json``` with all the parameters you need for your dataset.
+
+To run the script type:
+```bash
+    $ python3 main.py
+```

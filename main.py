@@ -8,23 +8,59 @@ import rrdtool as rrd
 
 import json
 
-#pd.set_option("display.max_rows", None, "display.max_columns", None
-#anomaly detection tuning defaults
+
+# anomaly detection tuning defaults
 CANDLE_STEP = 3
 DS_INDEX = 0
 ANOMALY_THRESHOLD = 2
 ALPHA = 0.6
 BETA = 0.5
 DELTA = 2
+METHOD = 'double'
 QUANTILE = 0.95
+USE_QUANTILE = False
+DB = "./rrd/db.rrd"
+ADDRESS = '127.0.0.1'
+PORT = 5678
 
-DB = "./rrd/db1.rrd"
-DS1 = 'DEF:ds1a=./rrd/db1.rrd:ds1:AVERAGE'
-DS0 = 'DEF:ds0a=./rrd/db1.rrd:ds0:AVERAGE'
+
+def build_config():
+
+    global CANDLE_STEP
+    global DS_INDEX
+    global ANOMALY_THRESHOLD
+    global ALPHA
+    global BETA
+    global DELTA
+    global QUANTILE
+    global USE_QUANTILE
+    global DB
+    global METHOD
+    global ADDRESS
+    global PORT
+
+    with open(file='config.json', mode='r') as config:
+        conf = json.load(config)
+        try:
+            CANDLE_STEP = conf['step']
+            DS_INDEX = conf['rrd-ds-index']
+            ANOMALY_THRESHOLD = conf['threshold']
+            ALPHA = conf['alpha']
+            BETA = conf['beta']
+            DELTA = conf['delta']
+            QUANTILE = conf['quantile']
+            USE_QUANTILE = conf['use-quantile']
+            DB = conf['rrd-path']
+            METHOD = conf['method']
+            ADDRESS = conf['address']
+            PORT = conf['port']
+
+        except KeyError:
+            print('*** NOTICE: some configuration values were not found, using defaults. ***')
+
 
 # detect anomalies based on how many abnormal parameters have been detected
 # e.g. detected volume, open, close anomaly for the same timestamp
-
 def detect_anomaly(row, volume: bool, open: bool, close: bool):
 
     a = []
@@ -112,19 +148,7 @@ def forecast_data(df, method, alpha, beta, delta):
 if __name__ == '__main__':
 
     # load configuration
-    with open(file='config.json', mode='r') as config:
-        conf = json.load(config)
-        try:
-            CANDLE_STEP = conf['step']
-            DS_INDEX = conf['rrd-ds-index']
-            ANOMALY_THRESHOLD = conf['threshold']
-            ALPHA = conf['alpha']
-            BETA = conf['beta']
-            DELTA = conf['delta']
-            QUANTILE = conf['quantile']
-
-        except KeyError:
-            print('*** NOTICE: some configuration values were not found, using defaults. ***')
+    build_config()
 
     print('> fetching data from database...')
 
@@ -137,7 +161,7 @@ if __name__ == '__main__':
     # Building candles and creating pandas dataframe to analyze data.
     candles = build_candles(start, step, ds_rows, CANDLE_STEP)
 
-    # build pandas dataframe
+    # Build pandas dataframe
     df = pd.DataFrame.from_records(s.to_dict() for s in candles)
     quantiles = {
         'volume': df['volume'].quantile(QUANTILE),
@@ -148,7 +172,7 @@ if __name__ == '__main__':
     print('> creating forecast model for fetched data...')
     forecast_data(df, method='double', alpha=ALPHA, beta=BETA, delta=DELTA)
 
-    # look for anomalies with forecasting
+    # Look for anomalies with forecasting
     print('> analyzing data...\n')
 
     anomaly_list = []
@@ -157,24 +181,21 @@ if __name__ == '__main__':
 
     for index, row in df.iterrows():
 
-        # adding column anomaly_type to dataframe to spot and get anomalies in frame.
+        # Adding column anomaly_type to dataframe to spot and get anomalies in frame.
         a = detect_anomaly(row=row, volume=True, open=True, close=True)
+        data = {
+                    'date': row['date'],
+                    'volume': row['volume'],
+                    'open': row['open'],
+                    'close': row['close'],
+        }
 
         count = 0
 
-        # check for percentile outliers
+        # Check for percentile outliers
         for s in a:
             if row[s] > quantiles[s]:
-                # print('> {} outlier found @ {} (out of {}th percentile)'.format(s, row['date'], QUANTILE*100))
                 count += 1
-
-        # check for forecasting anomalies
-        """
-        if len(a) >= ANOMALY_THRESHOLD:
-            print('> forecasting anomaly found @ {}'.format(row['date']), end=' ')
-            print('(%s)' % ', '.join(map(str, a)), end=' ')
-            print('(out of {} sigma in respect of exponential forecasting)'.format(DELTA))
-        """
 
         # combine outliers and forecasting anomalies
         # count > 0 means that at least one parameter (open, close, volume)
@@ -183,25 +204,24 @@ if __name__ == '__main__':
         # len(a) > threshold means that at least THRESHOLD params are out of
         # forecasted values of delta * sigma
 
-        if len(a) >= ANOMALY_THRESHOLD and count > 0:
-            anomaly_list.append(
-                {
-                    'date': row['date'],
-                    'volume': row['volume'],
-                    'open': row['open'],
-                    'close': row['close'],
-                }
-            )
-
+        if len(a) >= ANOMALY_THRESHOLD and (count > 0 and USE_QUANTILE):
+            anomaly_list.append(data)
             print('> Anomaly found @ {}:'.format(row['date']))
             print('\t-> %s' % ', '.join(map(str, a)), end=' ')
             print('are out of {} sigma in respect of exponential forecasting'.format(DELTA))
-            print('\t-> {} params were out of {}th percentile'.format(count, QUANTILE*100))
+            print('\t-> {} params were out of {}th percentile'.format(count, QUANTILE * 100))
+
+        # We're not using percentile combined with forecasting
+        elif len(a) >= ANOMALY_THRESHOLD and not USE_QUANTILE:
+            anomaly_list.append(data)
+            print('> Anomaly found @ {}:'.format(row['date']))
+            print('\t-> %s' % ', '.join(map(str, a)), end=' ')
+            print('are out of {} sigma in respect of exponential forecasting'.format(DELTA))
 
     print('\n> {} anomalies were found during analysis.\n'.format(len(anomaly_list)))
 
     print('---------------------------------------------------\n\n')
 
     anomaly_df = pd.DataFrame(anomaly_list)
-    plot_data(df, anomaly_df, QUANTILE)
+    plot_data(df, anomaly_df, QUANTILE, ADDRESS, PORT)
 
