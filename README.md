@@ -30,7 +30,7 @@ Data forecasting example chart:
 ### Installation instructions
 
 This project requires python 3.9 installed on your local machine and the package virtualenv.
-Once you have installed python open a terminal (on Linux/MacOS) window and type the following commands
+Once you have installed python, open a terminal (on Linux/MacOS) window and type the following commands
 in order to install dependencies.
 
 ```bash
