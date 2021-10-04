@@ -9,7 +9,7 @@ noisy datasets.
 
 This project implements simple and double exponential smoothing functions to forecast time series values.
 Each value of the candle is forecasted by the ewm function and confidence bands are created. Data are stored inside
-a pandas dataframe. It is possible to tune the algorithm "sensitivity". An anomaly is detected if more or equal than
+a pandas dataframe. It is possible to tune the algorithm "sensitivity". An anomaly is detected if more than or equal
 ```threshold``` params are out of the forecasted confidence bands for a single candle; 
 furthermore, the anomaly is confirmed if one of the actual params is out of the 95th percentile.
 
