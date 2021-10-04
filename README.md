@@ -24,7 +24,9 @@ to be visualized by the user.
 
 ### Screenshots
 Candlestick chart with anomalies markers:
+
 ![Candlestick chart with anomalies markers](assets/detected_anomalies.png)
 
 Data forecasting example chart:
+
 ![Data forecasting example chart](assets/chart_example.png)
