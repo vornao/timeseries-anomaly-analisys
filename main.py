@@ -19,7 +19,7 @@ DELTA = 2
 METHOD = 'double'
 QUANTILE = 0.95
 USE_QUANTILE = False
-DB = "./rrd/db.rrd"
+DB = "../rrd/db.rrd"
 ADDRESS = '127.0.0.1'
 PORT = 5678
 
@@ -39,7 +39,7 @@ def build_config():
     global ADDRESS
     global PORT
 
-    with open(file='config.json', mode='r') as config:
+    with open(file='./config.json', mode='r') as config:
         conf = json.load(config)
         try:
             CANDLE_STEP = conf['step']
@@ -52,7 +52,7 @@ def build_config():
             USE_QUANTILE = conf['use-quantile']
             DB = conf['rrd-path']
             METHOD = conf['method']
-            ADDRESS = conf['address']
+            ADDRESS = conf['local-server']
             PORT = conf['port']
 
         except KeyError:
