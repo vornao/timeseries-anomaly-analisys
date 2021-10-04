@@ -1,0 +1,9 @@
+{
+  "step" : 3,
+  "threshold" : 2,
+  "alpha": 0.5,
+  "beta": 0.6,
+  "delta": 2.1,
+  "quantile": 0.95,
+  "rrd-ds-index" : 0
+}
