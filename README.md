@@ -5,8 +5,6 @@ The forecasting algorithm has been based on (double) exponential moving average.
 Monitoring the three main candle values (open value, close value, and volume) allows us to find anomalies even in
 noisy datasets.
 
-***
-
 ### How does the algorithm work?
 
 This project implements simple and double exponential smoothing functions to forecast time series values.
@@ -19,8 +17,6 @@ Tuning parameters could be specified inside the config.json file in the root dir
 
 At the end of the analysis, found anomalies details are printed to the terminal and plotted to a plotly web app in order
 to be visualized by the user.
-
-***
 
 ### Screenshots
 Candlestick chart with anomalies markers:
