@@ -13,7 +13,7 @@ a pandas dataframe. It is possible to tune the algorithm "sensitivity". An anoma
 ```threshold``` params are out of the forecasted confidence bands for a single candle; 
 furthermore, the anomaly is confirmed if one of the actual params is out of the 95th percentile.
 
-Tuning parameters could be specified inside the ```config.json``` file in the root directory.
+Tuning parameters can be specified inside the ```config.json``` file in the root directory.
 
 At the end of the analysis, found anomalies details are printed to the terminal and plotted to a plotly web app in order
 to be visualized by the user.
@@ -30,7 +30,7 @@ Data forecasting example chart:
 ### Installation instructions
 
 This project requires python 3.9 installed on your local machine and the package virtualenv.
-Once you have installed python open a terminal (on linux/MacOS) window and type the following commands
+Once you have installed python open a terminal (on Linux/MacOS) window and type the following commands
 in order to install dependencies.
 
 ```bash
