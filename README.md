@@ -45,3 +45,4 @@ To run the script type:
 ```bash
     $ python3 main.py
 ```
+
