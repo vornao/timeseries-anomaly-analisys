@@ -1,13 +1,15 @@
+import time
 
 from candle import Candle
-from plotly_charts import plot_data
+import plotly_charts as charts
 
 import pandas as pd
 import stats_methods as sm
 import rrdtool as rrd
 
-import json
+import threading
 
+import json
 
 # anomaly detection tuning defaults
 CANDLE_STEP = 3
@@ -22,6 +24,7 @@ USE_QUANTILE = False
 DB = "../rrd/db.rrd"
 ADDRESS = '127.0.0.1'
 PORT = 5678
+WAIT = 20
 
 
 def build_config():
@@ -38,6 +41,7 @@ def build_config():
     global METHOD
     global ADDRESS
     global PORT
+    global WAIT
 
     with open(file='./config.json', mode='r') as config:
         conf = json.load(config)
@@ -54,6 +58,7 @@ def build_config():
             METHOD = conf['method']
             ADDRESS = conf['local-server']
             PORT = conf['port']
+            WAIT = conf['update-interval']
 
         except KeyError:
             print('*** NOTICE: some configuration values were not found, using defaults. ***')
@@ -77,36 +82,31 @@ def detect_anomaly(row, volume: bool, open: bool, close: bool):
 
 
 def build_candles(start_time: int, step: int, dataset: list, thickness: int) -> []:
-    dataset.remove(None)
-    candles = []
-    time = start_time
+
+    # remove none elements
+    dataset = list(filter(lambda a: a is not None, dataset))
+
+    c = []
+    t = start_time
 
     # analyze line chart and build a candle taking n. thickness points.
-    while len(dataset) > thickness:
+    while len(dataset) >= thickness:
         vals = dataset[:thickness]
         dataset = dataset[thickness:]
-        candles.append(Candle(time, vals[0], vals[-1], max(vals), min(vals)))
-        time += step * thickness
+        c.append(Candle(t, vals[0], vals[-1], max(vals), min(vals)))
+        t += step * thickness
 
-    candles.append(Candle(time, dataset[0], dataset[-1], max(dataset), min(dataset)))
-    return candles
+    # return built candles and last candle timestamp.
+    return c, t
 
 
-def fetch_rrd_data(rrd_path):
+def fetch_rrd_data(rrd_path, last, first):
     # Fetching first and last timestamp from RRD database
-    first = rrd.first(DB)
-    last = rrd.last(DB)
 
     res = rrd.fetch(rrd_path, "AVERAGE", "-e", str(last), '-s', str(first))
     start, end, step = res[0]
     ds = res[1]
     rows = res[2]
-
-    print('*** NOTICE: RRD step is {}s, and selected candle step is {} -> each candle will represent {} minutes of data ***\n'.format(
-        step,
-        CANDLE_STEP,
-        step*CANDLE_STEP/60)
-    )
 
     return start, end, step, ds, rows
 
@@ -145,34 +145,7 @@ def forecast_data(df, method, alpha, beta, delta):
     df['close_confidence_lower_band'] = [val - delta * close_std for val in df['close_forecast']]
 
 
-if __name__ == '__main__':
-
-    # load configuration
-    build_config()
-
-    print('> fetching data from database...')
-
-    start, end, step, ds, rows = fetch_rrd_data(DB)
-    ds_rows = []
-
-    for x in rows:
-        ds_rows.append(x[DS_INDEX])
-
-    # Building candles and creating pandas dataframe to analyze data.
-    candles = build_candles(start, step, ds_rows, CANDLE_STEP)
-
-    # Build pandas dataframe
-    df = pd.DataFrame.from_records(s.to_dict() for s in candles)
-    quantiles = {
-        'volume': df['volume'].quantile(QUANTILE),
-        'open': df['open'].quantile(QUANTILE),
-        'close': df['close'].quantile(QUANTILE)
-    }
-
-    print('> creating forecast model for fetched data...')
-    forecast_data(df, method='double', alpha=ALPHA, beta=BETA, delta=DELTA)
-
-    # Look for anomalies with forecasting
+def analyze_data(df, quantiles):
     print('> analyzing data...\n')
 
     anomaly_list = []
@@ -184,10 +157,10 @@ if __name__ == '__main__':
         # Adding column anomaly_type to dataframe to spot and get anomalies in frame.
         a = detect_anomaly(row=row, volume=True, open=True, close=True)
         data = {
-                    'date': row['date'],
-                    'volume': row['volume'],
-                    'open': row['open'],
-                    'close': row['close'],
+            'date': row['date'],
+            'volume': row['volume'],
+            'open': row['open'],
+            'close': row['close'],
         }
 
         count = 0
@@ -222,6 +195,91 @@ if __name__ == '__main__':
 
     print('---------------------------------------------------\n\n')
 
-    anomaly_df = pd.DataFrame(anomaly_list)
-    plot_data(df, anomaly_df, QUANTILE, ADDRESS, PORT)
+
+if __name__ == '__main__':
+
+    # load configuration
+    build_config()
+
+    print('> fetching data from database...')
+
+    # first, read the whole database to synchronize with current time.
+
+    start, end, step, ds, rows = fetch_rrd_data(DB, str(rrd.last(DB)), str(rrd.first(DB)))
+    ds_rows = []
+    candles = []
+
+    for x in rows:
+        ds_rows.append(x[DS_INDEX])
+
+    # Building candles and creating pandas dataframe to analyze data.
+    candles, start = build_candles(start, step, ds_rows, CANDLE_STEP)
+
+    # Build pandas dataframe
+    df = pd.DataFrame.from_records(s.to_dict() for s in candles)
+
+    quantiles = {
+        'volume': df['volume'].quantile(QUANTILE),
+        'open': df['open'].quantile(QUANTILE),
+        'close': df['close'].quantile(QUANTILE)
+    }
+
+    print('> creating forecast model for fetched data...')
+    forecast_data(df, method='double', alpha=ALPHA, beta=BETA, delta=DELTA)
+
+    # Look for anomalies with forecasting
+    analyze_data(df, quantiles)
+
+    # enter while loop: fetching data will begin from last read value (end)
+
+    ds_rows = []
+    candles = []
+
+    # start live chart daemon server
+    dash_thread = threading.Thread(target=charts.begin, args=(ADDRESS, PORT, df))
+    dash_thread.setDaemon(True)
+    dash_thread.start()
+
+    # todo add comments to code to explain the work
+    while True:
+        start, end, step, ds, rows = fetch_rrd_data(DB, 'now', str(start))
+
+        for x in rows:
+            ds_rows.append(x[DS_INDEX])
+
+        candles, start = build_candles(start, step, ds_rows, CANDLE_STEP)
+
+        update_df = pd.DataFrame()
+
+        # upload some old values to make better forecasting on new data
+        # the bigger is the old dataset, the better forecasting.
+        update_df = pd.concat([df.tail(20), update_df])
+        update_df = pd.concat([update_df, pd.DataFrame.from_records(s.to_dict() for s in candles)], ignore_index=True)
+
+        # make predictions only on new dataframe.
+        forecast_data(update_df, method='double', alpha=ALPHA, beta=BETA, delta=DELTA)
+
+        # just update new candles: tail functions assures that only the candles are added to the df, avoiding
+        # duplicates and loops inside data.
+        # it's not strictly necessary to merge old df with new ones; it's needed only for charting purposes.
+        # the script also needs all the dataframe to compute quantiles.
+        # callback is needed since concat function changes reference to mutable object df -> we need to pass it to
+        # the charting module to refresh df reference.
+        df = pd.concat([df, update_df.tail(len(candles))], ignore_index=True)
+        charts.df_callback(df)
+
+        # here we are
+        if USE_QUANTILE:
+            quantiles = {
+                'volume': df['volume'].quantile(QUANTILE),
+                'open': df['open'].quantile(QUANTILE),
+                'close': df['close'].quantile(QUANTILE)
+            }
+
+        # TODO fix quantile charts
+        analyze_data(update_df, quantiles)
+
+        ds_rows.clear()
+        candles.clear()
+        time.sleep(WAIT)
 
