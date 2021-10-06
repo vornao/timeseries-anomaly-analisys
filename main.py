@@ -230,7 +230,7 @@ if __name__ == '__main__':
     # Look for anomalies with forecasting
     analyze_data(df, quantiles)
 
-    # enter while loop: fetching data will begin from last read value (end)
+    # enter while loop: data fetching will begin from last read value (end)
 
     ds_rows = []
     candles = []
