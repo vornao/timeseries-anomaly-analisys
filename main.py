@@ -1,12 +1,9 @@
-
-# todo fix import issues
 from candle import Candle
 from plotly_charts import plot_data
 
 import pandas as pd
 import stats_methods as sm
 import rrdtool as rrd
-
 import json
 
 
