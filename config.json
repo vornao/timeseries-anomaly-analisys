@@ -12,5 +12,5 @@
   "local-server": "127.0.0.1",
   "update-interval": 30,
   "port": 5678,
-  "depth": 40
+  "depth": 20
 }
