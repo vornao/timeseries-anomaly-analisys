@@ -1,4 +1,5 @@
 import time
+
 from candle import Candle
 import plotly_charts as charts
 
@@ -7,6 +8,7 @@ import stats_methods as sm
 import rrdtool as rrd
 
 import threading
+
 import json
 
 # anomaly detection tuning defaults
@@ -23,7 +25,7 @@ DB = "../rrd/db.rrd"
 ADDRESS = '127.0.0.1'
 PORT = 5678
 WAIT = 20
-DEPTH = 30
+DEPTH = 20
 
 
 def build_config():
@@ -40,7 +42,6 @@ def build_config():
     global METHOD
     global ADDRESS
     global PORT
-    global DEPTH
     global WAIT
 
     with open(file='./config.json', mode='r') as config:
@@ -59,7 +60,6 @@ def build_config():
             ADDRESS = conf['local-server']
             PORT = conf['port']
             WAIT = conf['update-interval']
-            DEPTH = conf['depth']
 
         except KeyError:
             print('*** NOTICE: some configuration values were not found, using defaults. ***')
@@ -167,12 +167,9 @@ def analyze_data(df, quantiles):
         count = 0
 
         # Check for percentile outliers
-        try:
-            for s in a:
-                if row[s] > quantiles[s]:
-                    count += 1
-        except KeyError:
-            pass
+        for s in a:
+            if row[s] > quantiles[s]:
+                count += 1
 
         # combine outliers and forecasting anomalies
         # count > 0 means that at least one parameter (open, close, volume)
@@ -198,19 +195,23 @@ def analyze_data(df, quantiles):
     print('\n> {} anomalies were found during analysis.\n'.format(len(anomaly_list)))
 
     print('---------------------------------------------------\n\n')
+
     return anomaly_list
 
 
 if __name__ == '__main__':
 
-    quantiles = {}
-
     # load configuration
     build_config()
+
+    # Build anomaly dataframe to store anomalies data.
+
+    anomaly_df = pd.DataFrame()
 
     print('> fetching data from database...')
 
     # first, read the whole database to synchronize with current time.
+
     start, end, step, ds, rows = fetch_rrd_data(DB, str(rrd.last(DB)), str(rrd.first(DB)))
     ds_rows = []
     candles = []
@@ -224,22 +225,18 @@ if __name__ == '__main__':
     # Build pandas dataframe
     df = pd.DataFrame.from_records(s.to_dict() for s in candles)
 
-    # Build anomaly dataframe to store anomalies data.
-
-    anomaly_df = pd.DataFrame()
-
-    if USE_QUANTILE:
-        quantiles['volume'] = df['volume'].quantile(QUANTILE)
-        quantiles['open'] = df['open'].quantile(QUANTILE)
-        quantiles['close'] = df['close'].quantile(QUANTILE)
+    quantiles = {
+        'volume': df['volume'].quantile(QUANTILE),
+        'open': df['open'].quantile(QUANTILE),
+        'close': df['close'].quantile(QUANTILE)
+    }
 
     print('> creating forecast model for fetched data...')
     forecast_data(df, method='double', alpha=ALPHA, beta=BETA, delta=DELTA)
-
     # Look for anomalies with forecasting
-    anomaly_df = pd.concat([anomaly_df, pd.DataFrame.from_records(analyze_data(df, quantiles))])
+    anomaly_df = pd.DataFrame.from_records(analyze_data(df, quantiles))
 
-    # enter while loop: data fetching will begin from last read value (end)
+    # enter while loop: fetching data will begin from last read value (end)
 
     ds_rows = []
     candles = []
@@ -282,21 +279,24 @@ if __name__ == '__main__':
         # duplicates and loops inside data.
         # it's not strictly necessary to merge old df with new ones; it's needed only for charting purposes.
         # the script also needs all the dataframe to compute quantiles.
+        # callback is needed since concat function changes reference to mutable object df -> we need to pass it to
+        # the charting module to refresh df reference.
+
+        update_df = update_df.tail(len(candles))
+        df = pd.concat([df, update_df], ignore_index=True)
 
         # here we are
         if USE_QUANTILE:
-            df = pd.concat([df, update_df.tail(len(candles))], ignore_index=True)
             quantiles['volume'] = df['volume'].quantile(QUANTILE)
             quantiles['open'] = df['open'].quantile(QUANTILE)
             quantiles['close'] = df['close'].quantile(QUANTILE)
-            anomaly_df = pd.concat([anomaly_df, pd.DataFrame.from_records(analyze_data(df, quantiles))])
 
         else:
             df = update_df
             anomaly_df = pd.DataFrame.from_records(analyze_data(df, quantiles))
 
-        # callback is needed since concat function changes reference to mutable object df -> we need to pass it to
-        # the charting module to refresh df reference.
+        analyze_data(update_df, quantiles)
+
         charts.df_callback(df, anomaly_df, quantiles)
         ds_rows.clear()
         candles.clear()
