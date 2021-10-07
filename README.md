@@ -1,4 +1,4 @@
-## Using candlestick charts to identify network anomalies in timeseries data
+## Using candlestick charts to identify network anomalies in time series data
 
 This simple script analyzes anomalies and outliers inside a time series, using candlestick charts.
 Forecasting algorithm has been based on (double) exponential moving average.
@@ -23,7 +23,6 @@ n is the great integer such that ```n <= len(ds_rows)``` and ```n mod thickness 
 If there are not enough points to build a candle, starting timestamp and empty list is returned.
 
 Using candlestick charts instead of _raw_ time series let us make better predictions in noisy data.
-
 
 ### How does the algorithm work?
 

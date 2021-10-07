@@ -1,5 +1,4 @@
 import time
-
 from candle import Candle
 import plotly_charts as charts
 
@@ -8,7 +7,6 @@ import stats_methods as sm
 import rrdtool as rrd
 
 import threading
-
 import json
 
 # anomaly detection tuning defaults
