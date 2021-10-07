@@ -194,6 +194,7 @@ def analyze_data(df, quantiles):
     print('\n> {} anomalies were found during analysis.\n'.format(len(anomaly_list)))
 
     print('---------------------------------------------------\n\n')
+    return anomaly_list
 
 
 if __name__ == '__main__':
@@ -204,7 +205,6 @@ if __name__ == '__main__':
     print('> fetching data from database...')
 
     # first, read the whole database to synchronize with current time.
-
     start, end, step, ds, rows = fetch_rrd_data(DB, str(rrd.last(DB)), str(rrd.first(DB)))
     ds_rows = []
     candles = []
@@ -218,17 +218,22 @@ if __name__ == '__main__':
     # Build pandas dataframe
     df = pd.DataFrame.from_records(s.to_dict() for s in candles)
 
-    quantiles = {
-        'volume': df['volume'].quantile(QUANTILE),
-        'open': df['open'].quantile(QUANTILE),
-        'close': df['close'].quantile(QUANTILE)
-    }
+    # Build anomaly dataframe to store anomalies data.
+
+    anomaly_df = pd.DataFrame()
+
+    if USE_QUANTILE:
+        quantiles = {
+            'volume': df['volume'].quantile(QUANTILE),
+            'open': df['open'].quantile(QUANTILE),
+            'close': df['close'].quantile(QUANTILE)
+        }
 
     print('> creating forecast model for fetched data...')
     forecast_data(df, method='double', alpha=ALPHA, beta=BETA, delta=DELTA)
 
     # Look for anomalies with forecasting
-    analyze_data(df, quantiles)
+    anomaly_df = pd.concat([anomaly_df, pd.DataFrame.from_records(analyze_data(df, quantiles))])
 
     # enter while loop: data fetching will begin from last read value (end)
 
@@ -240,7 +245,17 @@ if __name__ == '__main__':
     dash_thread.setDaemon(True)
     dash_thread.start()
 
-    # todo add comments to code to explain the work
+    # Start while loop to forecast live-streamed data from rrd source:
+    # How does it work:
+    # keep trace of last candle timestamp, then fetch data starting from that timestamp until now.
+    # Candles building algorithm has been improved: function builds exactly n candles and n is the greater
+    # integer such that n mod len(fetched_data) = 0
+    # after building candles, the last timestamp is saved again and the other rows are dropped
+    # (not more than thickness - 1 rows are discarded, and it's acceptable)
+    # new candles are now analyzed: forecasting is based on previous 20 candles.
+    # if new anomalies are detected, they're added to anomaly df in order to be printed.
+    # if it's necessary to compute quantiles, candles are added to original df and new quantiles are generated.
+
     while True:
         start, end, step, ds, rows = fetch_rrd_data(DB, 'now', str(start))
 
@@ -263,22 +278,23 @@ if __name__ == '__main__':
         # duplicates and loops inside data.
         # it's not strictly necessary to merge old df with new ones; it's needed only for charting purposes.
         # the script also needs all the dataframe to compute quantiles.
-        # callback is needed since concat function changes reference to mutable object df -> we need to pass it to
-        # the charting module to refresh df reference.
-        df = pd.concat([df, update_df.tail(len(candles))], ignore_index=True)
-        charts.df_callback(df)
 
         # here we are
         if USE_QUANTILE:
+            df = pd.concat([df, update_df.tail(len(candles))], ignore_index=True)
             quantiles = {
                 'volume': df['volume'].quantile(QUANTILE),
                 'open': df['open'].quantile(QUANTILE),
                 'close': df['close'].quantile(QUANTILE)
             }
+        else:
+            df = update_df
 
-        # TODO fix quantile charts
-        analyze_data(update_df, quantiles)
+        anomaly_df = pd.concat([anomaly_df, pd.DataFrame.from_records(analyze_data(df, quantiles))])
 
+        # callback is needed since concat function changes reference to mutable object df -> we need to pass it to
+        # the charting module to refresh df reference.
+        charts.df_callback(df, anomaly_df, quantiles)
         ds_rows.clear()
         candles.clear()
         time.sleep(WAIT)
