@@ -18,8 +18,8 @@ to ```3```, each candle will represent 15 minutes of data; so, for each candle w
 - ```volume = abs(close-open)``` and represents candle's body (or height)
 
 Candles are built considering the first n elements of the list: 
-n is the great integer such that ```n <= len(ds_rows)``` and ```n mod thickness = 0 ```; there are at most 
-```thickness - 1``` at every iteration of the algorithm. Candles list and last candle timestamp are returned from the function.
+n is the great integer such that ```n <= len(ds_rows)``` and ```n mod thickness = 0```; there are at most 
+```thickness - 1``` discarded rows at every iteration of the algorithm. Candles list and last candle timestamp are returned from the function.
 If there are not enough points to build a candle, starting timestamp and empty list is returned.
 
 Using candlestick charts instead of _raw_ time series let us make better predictions in noisy data.
