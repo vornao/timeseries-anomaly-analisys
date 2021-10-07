@@ -90,7 +90,6 @@ def begin(address, port, dataframe):
 
 @app.callback(Output('candlestick', 'figure'), Input('interval-candles', 'n_intervals'))
 def candlestick_chart(n):
-    print(df)
     fig0 = go.Figure(data=[go.Candlestick(
         x=df['date'],
         open=df['open'],
