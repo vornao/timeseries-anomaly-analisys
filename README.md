@@ -8,7 +8,7 @@ noisy datasets.
 ### How are candles created and what do open, close and volume values mean in network monitoring?
 
 In order to create candles, data are fetched from a provided RRD archive; then the resulting time series is 
-split into temporal windows, each one representing a candle (window size can be set inside the config.json).
+split into temporal windows, each one representing a candle (window size can be adjusted inside the config.json).
 The bigger the window, the thicker the candle. For example, if RRD step is ```300s``` (5min) and candle thickness is set
 to ```3```, each candle will represent 15 minutes of data; so, for each candle we obtain that:
 
