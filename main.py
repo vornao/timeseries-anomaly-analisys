@@ -254,8 +254,8 @@ if __name__ == '__main__':
     # Start while loop to forecast live-streamed data from rrd source:
     # How does it work:
     # keep trace of last candle timestamp, then fetch data starting from that timestamp until now.
-    # Candles building algorithm has been improved: function builds exactly n candles and n is the greater
-    # integer such that n mod len(fetched_data) = 0
+    # Candles building algorithm has been improved: function builds exactly n candles and n is the great
+    # integer such that n mod thickness = 0
     # after building candles, the last timestamp is saved again and the other rows are dropped
     # (not more than thickness - 1 rows are discarded, and it's acceptable)
     # new candles are now analyzed: forecasting is based on previous _DEPTH_ candles.
