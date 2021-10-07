@@ -22,7 +22,7 @@ page_style = {
 app = dash.Dash()
 df: pandas.DataFrame
 anomaly_df: pandas.DataFrame
-quantiles: dict
+quantiles = {}
 
 
 def df_callback(new_ref, new_anomaly_ref, quantiles_ref):
@@ -127,8 +127,11 @@ def volume_chart(n):
         go.Scatter(x=df['date'], y=df['vol_confidence_lower_band'], line=conf_style, name='lower confidence open'))
     fig1.add_trace(
         go.Scatter(x=df['date'], y=df['vol_confidence_upper_band'], line=conf_style, name='upper confidence open'))
-    fig1.add_hline(y=quantiles['volume'], line=quantile_style)
-    fig1.update_layout(paper_bgcolor=bgcolor)
+    try:
+        fig1.add_hline(y=quantiles['volume'], line=quantile_style)
+    except KeyError:
+        pass
+
     try:
         fig1.add_trace(
             go.Scatter(
@@ -143,6 +146,7 @@ def volume_chart(n):
     except KeyError:
         pass
 
+    fig1.update_layout(paper_bgcolor=bgcolor)
     return fig1
 
 
@@ -157,9 +161,11 @@ def close_chart(n):
         go.Scatter(x=df['date'], y=df['close_confidence_upper_band'], line=conf_style, name='upper confidence'))
     fig2.add_trace(
         go.Scatter(x=df['date'], y=df['close_confidence_lower_band'], line=conf_style, name='lower confidence'))
-    fig2.add_hline(y=quantiles['close'], line=quantile_style)
 
-    fig2.update_layout(paper_bgcolor=bgcolor)
+    try:
+        fig2.add_hline(y=quantiles['close'], line=quantile_style)
+    except KeyError:
+        pass
 
     try:
         fig2.add_trace(
@@ -175,6 +181,7 @@ def close_chart(n):
     except KeyError:
         pass
 
+    fig2.update_layout(paper_bgcolor=bgcolor)
     return fig2
 
 
@@ -189,9 +196,13 @@ def open_chart(n):
         go.Scatter(x=df['date'], y=df['op_confidence_upper_band'], line=conf_style, name='upper confidence'))
     fig3.add_trace(
         go.Scatter(x=df['date'], y=df['op_confidence_lower_band'], line=conf_style, name='lower confidence'))
-    fig3.add_hline(y=quantiles['open'], line=quantile_style)
 
-    fig3.update_layout(paper_bgcolor=bgcolor)
+    try:
+        fig3.add_hline(y=quantiles['open'], line=quantile_style)
+    except KeyError:
+        pass
+
+
     try:
         fig3.add_trace(
             go.Scatter(
@@ -206,4 +217,5 @@ def open_chart(n):
     except KeyError:
         pass
 
+    fig3.update_layout(paper_bgcolor=bgcolor)
     return fig3
