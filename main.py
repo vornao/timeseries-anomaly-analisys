@@ -257,7 +257,7 @@ if __name__ == '__main__':
     # Candles building algorithm has been improved: function builds exactly n candles and n is the great
     # integer such that n mod thickness = 0
     # after building candles, the last timestamp is saved again and the other rows are dropped
-    # (not more than thickness - 1 rows are discarded, and it's acceptable)
+    # (not more than thickness - 1 rows are discarded, and it's acceptinable)
     # new candles are now analyzed: forecasting is based on previous _DEPTH_ candles.
     # if new anomalies are detected, they're added to anomaly df in order to be printed.
     # if it's necessary to compute quantiles, candles are added to original df and new quantiles are generated.

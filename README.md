@@ -37,7 +37,7 @@ At the end of the analysis, found anomalies details are printed to the terminal 
 to be visualized by the user.
 
 #### Update: Live-streaming feature:
-After fetching old data, the script keep querying RRD database at regular intervals (see config.json).
+After fetching old data, the script keeps querying RRD database at regular intervals (see config.json).
 
 In particular, when the last-fetched candle is synchronized with current time, program begins a ```while True``` loop.
 At every iteration, RRD file is asked for new data; if there are, candles are built and new data are analyzed; 
